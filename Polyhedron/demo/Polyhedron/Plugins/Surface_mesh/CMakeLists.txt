@@ -20,6 +20,10 @@ qt5_wrap_ui( segmentationUI_FILES Mesh_segmentation_widget.ui)
 polyhedron_demo_plugin(mesh_segmentation_plugin Mesh_segmentation_plugin ${segmentationUI_FILES})
 target_link_libraries(mesh_segmentation_plugin PUBLIC scene_surface_mesh_item)
 
+qt5_wrap_ui( approximate_convex_segmentationUI_FILES Approximate_convex_segmentation_widget.ui)
+polyhedron_demo_plugin(approximate_convex_segmentation_plugin Approximate_convex_segmentation_plugin ${approximate_convex_segmentationUI_FILES})
+target_link_libraries(approximate_convex_segmentation_plugin PUBLIC scene_surface_mesh_item)
+
 qt5_wrap_ui( mesh_plane_detectionUI_FILES  Mesh_plane_detection_dialog.ui)
 polyhedron_demo_plugin(mesh_plane_detection_plugin Mesh_plane_detection_plugin ${mesh_plane_detectionUI_FILES})
 target_link_libraries(mesh_plane_detection_plugin PUBLIC scene_surface_mesh_item)
@@ -39,3 +43,7 @@ endif()
 qt5_wrap_ui( shortestPathUI_FILES Shortest_path_widget.ui )
 polyhedron_demo_plugin(shortest_path_plugin Shortest_path_plugin ${shortestPathUI_FILES})
 target_link_libraries(shortest_path_plugin PUBLIC scene_surface_mesh_item scene_shortest_path_item scene_basic_objects)
+
+if(TBB_FOUND)
+  CGAL_target_use_TBB(approximate_convex_segmentation_plugin)
+endif()
