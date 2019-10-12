@@ -30,7 +30,7 @@ do
   fi
 done
 
-cmake -DCGAL_HEADER_ONLY=FALSE -DCGAL_ENABLE_CHECK_HEADERS=TRUE -DDOXYGEN_EXECUTABLE="$DOX_PATH" -DCGAL_COPY_DEPENDENCIES=TRUE -DCMAKE_CXX_FLAGS="-std=c++1y" ..
+cmake -DCGAL_ENABLE_CHECK_HEADERS=TRUE -DDOXYGEN_EXECUTABLE="$DOX_PATH" -DCGAL_COPY_DEPENDENCIES=TRUE -DCMAKE_CXX_FLAGS="-std=c++1y" ..
 if [ -n "$DO_CHECK_HEADERS" ]; then
     make -j$(nproc --all) -k check_headers
 fi
@@ -42,11 +42,11 @@ do
   if [ -f "$pkg_path/package_info/$pkg/dependencies" ]; then
     PKG_DIFF=$(grep -Fxv -f "$pkg_path/package_info/$pkg/dependencies.old" "$pkg_path/package_info/$pkg/dependencies" || true)
     if [ -n "$PKG_DIFF" ]; then
-      TOTAL_RES="Differences in $pkg: $PKG_DIFF are new and not committed.\n $TOTAL_RES"
+      TOTAL_RES="Differences in $pkg:+++ $PKG_DIFF \n $TOTAL_RES"
     fi
     PKG_DIFF=$(grep -Fxv -f "$pkg_path/package_info/$pkg/dependencies" "$pkg_path/package_info/$pkg/dependencies.old" || true)
     if [ -n "$PKG_DIFF" ]; then
-      TOTAL_RES="Differences in $pkg: $PKG_DIFF have disappeared.\n $TOTAL_RES"
+      TOTAL_RES="Differences in $pkg: ---$PKG_DIFF \n $TOTAL_RES"
     fi
     if [ -f $pkg_path/package_info/$pkg/dependencies.old ]; then
       rm $pkg_path/package_info/$pkg/dependencies.old

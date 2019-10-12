@@ -1087,7 +1087,9 @@ ${CGAL_3RD_PARTY_DEFINITIONS} ${CGAL_Qt5_3RD_PARTY_DEFINITIONS} \
 ${CGAL_DEFINITIONS}"
       )
     message("COMPILATION OPTIONS ARE :  ${compile_options}")
-
+    if(CGAL_HEADER_ONLY)
+      set(compile_options "${compile_options} -DCGAL_HEADER_ONLY=1")
+    endif()
     if(NOT RS_FOUND AND NOT RS3_FOUND)
       set(compile_options "${compile_options} \
 -DCGAL_ALGEBRAIC_KERNEL_RS_GMPZ_D_1=1 \
@@ -1180,7 +1182,9 @@ You must disable CGAL_ENABLE_CHECK_HEADERS.")
     execute_process(COMMAND "${CMAKE_COMMAND}" -DDOXYGEN_EXECUTABLE=${DOXYGEN_EXECUTABLE} "${CMAKE_SOURCE_DIR}/Documentation/doc"
         WORKING_DIRECTORY "${DOC_DIR}"
         )
-    execute_process(COMMAND "${CMAKE_COMMAND}" --build . --target "doc"
+    include(ProcessorCount)
+    ProcessorCount(NPROCS)
+    execute_process(COMMAND "${CMAKE_COMMAND}" --build . --target "doc" -j${NPROCS}
         WORKING_DIRECTORY "${DOC_DIR}" )
 
   #Get the list of the documented headers
@@ -1188,10 +1192,12 @@ You must disable CGAL_ENABLE_CHECK_HEADERS.")
   file(GLOB html_files RELATIVE "${DOC_DIR}/doc_output/" "${DOC_DIR}/doc_output/*/*.html")
   file(GLOB example_files RELATIVE "${CMAKE_SOURCE_DIR}/" "${CMAKE_SOURCE_DIR}/*/examples/*/*.cpp")
   find_program(AWK awk)
-  set(awk_arguments [=[{ match($0, /# *include *(&lt;|[<"])(CGAL\/[^>&"]*)([>"]|&gt;)/,arr); if(arr[2]!="") print arr[2] }]=])
   message("listing headers from html files")
   foreach(f ${html_files})
-    execute_process(COMMAND "${AWK}" "${awk_arguments}" "${DOC_DIR}/doc_output/${f}"
+    execute_process(COMMAND
+        "${AWK}"
+        -f "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/documented_headers.awk"
+        "${DOC_DIR}/doc_output/${f}"
       OUTPUT_VARIABLE tmp_list)
     if (NOT "${tmp_list}" STREQUAL "")
       string(REPLACE "\n" ";" tmp_list ${tmp_list})
@@ -1200,7 +1206,10 @@ You must disable CGAL_ENABLE_CHECK_HEADERS.")
   endforeach()
   message("listing headers from examples files")
   foreach(f ${example_files})
-    execute_process(COMMAND "${AWK}" "${awk_arguments}" "${CMAKE_SOURCE_DIR}/${f}"
+    execute_process(COMMAND
+        "${AWK}"
+        -f "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/documented_headers.awk"
+        "${CMAKE_SOURCE_DIR}/${f}"
       OUTPUT_VARIABLE tmp_list)
     if (NOT "${tmp_list}" STREQUAL "")
       string(REPLACE "\n" ";" tmp_list ${tmp_list})
@@ -1337,7 +1346,6 @@ ${CMAKE_CURRENT_SOURCE_DIR}/../${package}/include/${header}"
         list(REMOVE_DUPLICATES packages_deps)
       endif()
     endforeach() # loop on packages
-    
     #Now check that a cpp file including all documented headers compiles
     file(WRITE ${CGAL_BINARY_DIR}/test_headers.cpp "#define  BOOST_PARAMETER_MAX_ARITY 12 \n")
     foreach(header ${list_of_headers_to_test})
@@ -1358,6 +1366,17 @@ ${CMAKE_CURRENT_SOURCE_DIR}/../${package}/include/${header}"
                     )
 
     add_custom_target(packages_dependencies DEPENDS ${packages_deps})
+
+    configure_file(${CGAL_MODULES_DIR}/dependencies_graph/build-graphs.sh.in
+      ${CGAL_BINARY_DIR}/build-graphs.sh @ONLY)
+    file(COPY ${CGAL_MODULES_DIR}/dependencies_graph/html DESTINATION ${CGAL_BINARY_DIR}/package_info)
+    add_custom_command(OUTPUT
+      ${CGAL_BINARY_DIR}/package_info/html/deps.svg
+      ${CGAL_BINARY_DIR}/package_info/html/deps-unfiltered.svg
+      COMMAND bash ${CGAL_BINARY_DIR}/build-graphs.sh
+      DEPENDS packages_dependencies
+      WORKING_DIRECTORY ${CGAL_BINARY_DIR})
+    add_custom_target(dependency_graphs DEPENDS ${CGAL_BINARY_DIR}/package_info/html/deps.svg)
     message( "  \n\
   You can now check the headers with the target `check_headers`\n\
   and the package dependencies with the target `packages_dependencies`.\n\
@@ -1366,7 +1385,9 @@ ${CMAKE_CURRENT_SOURCE_DIR}/../${package}/include/${header}"
     - package_info/<package>/dependencies\n\
     - package_info/<package>/included_headers\n\
     - package_info/<package>/check_headers/ (error messages from \
-the headers checks)\n")
+the headers checks)\n\n\
+  If you have 'bash' and the graphviz tools suite, then the target \n\
+  `dependency_graphs` will also build HTML pages in `package_info/html/`.\n")
     message( "== Setting header checking (DONE) ==\n" )
   endif()
 endif( CGAL_BRANCH_BUILD )
