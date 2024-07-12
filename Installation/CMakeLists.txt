@@ -479,9 +479,84 @@ if(CMAKE_COMPILER_IS_GNUCXX)
   endif()
 
 endif()
+set(LIBRARIES_TO_CHECK
+  Boost GMP MPFR
+  VTK
+  Qt6
+  Eigen3 OpenGR libpointmatcher LEDA MPFI
+  NTL TBB OpenCV METIS ZLIB
+  Ceres GLPK SCIP OSQP
+)
 
+function(check_library cgal_3rdparty_lib)
+  set(QT_NO_CREATE_VERSIONLESS_TARGETS ON)
+  set(CMAKE_FIND_PACKAGE_QUIET TRUE)
+  find_package(${cgal_3rdparty_lib} QUIET)
+  set(CMAKE_FIND_PACKAGE_QUIET FALSE)
+  if(${cgal_3rdparty_lib}_FOUND)
+    set(version_var "")
+    if(${cgal_3rdparty_lib} STREQUAL "Eigen3")
+      set(version_var ${EIGEN3_VERSION})
+    elseif(${cgal_3rdparty_lib} STREQUAL "GMP")
+      set(version_var ${GMP_VERSION})
+    elseif(${cgal_3rdparty_lib} STREQUAL "MPFR" OR ${cgal_3rdparty_lib} STREQUAL "METIS")
+      set(header_name "")
+      set(version_macros "")
+      if(${cgal_3rdparty_lib} STREQUAL "MPFR")
+        set(header_name "mpfr.h")
+        set(version_macros "MPFR_VERSION_MAJOR;MPFR_VERSION_MINOR;MPFR_VERSION_PATCHLEVEL")
+      elseif(${cgal_3rdparty_lib} STREQUAL "METIS")
+        set(header_name "metis.h")
+        set(version_macros "METIS_VER_MAJOR;METIS_VER_MINOR;METIS_VER_SUBMINOR")
+      endif()
+
+      find_path(INCLUDE_DIR
+          NAMES ${header_name}
+          PATHS ${${cgal_3rdparty_lib}_INCLUDE_DIRS}
+          PATH_SUFFIXES ${cgal_3rdparty_lib}
+      )
+
+      if(INCLUDE_DIR)
+        set(HEADER_PATH "${INCLUDE_DIR}/${header_name}")
+
+        if(EXISTS ${HEADER_PATH})
+          file(READ ${HEADER_PATH} HEADER_CONTENT)
+
+          list(GET version_macros 0 major_macro)
+          list(GET version_macros 1 minor_macro)
+          list(GET version_macros 2 patchlevel_macro)
+
+          string(REGEX MATCH "#define[ \t]+${major_macro}[ \t]+([0-9]+)" _major_match ${HEADER_CONTENT})
+          string(REGEX MATCH "#define[ \t]+${minor_macro}[ \t]+([0-9]+)" _minor_match ${HEADER_CONTENT})
+          string(REGEX MATCH "#define[ \t]+${patchlevel_macro}[ \t]+([0-9]+)" _patchlevel_match ${HEADER_CONTENT})
+
+          string(REGEX REPLACE ".*#define[ \t]+${major_macro}[ \t]+([0-9]+).*" "\\1" VERSION_MAJOR ${_major_match})
+          string(REGEX REPLACE ".*#define[ \t]+${minor_macro}[ \t]+([0-9]+).*" "\\1" VERSION_MINOR ${_minor_match})
+          string(REGEX REPLACE ".*#define[ \t]+${patchlevel_macro}[ \t]+([0-9]+).*" "\\1" VERSION_PATCHLEVEL ${_patchlevel_match})
+
+          set(version_var "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCHLEVEL}")
+        endif()
+      endif()
+    elseif(DEFINED ${cgal_3rdparty_lib}_VERSION)
+      set(version_var ${${cgal_3rdparty_lib}_VERSION})
+    elseif(DEFINED ${cgal_3rdparty_lib}_VERSION_STRING)
+      set(version_var ${${cgal_3rdparty_lib}_VERSION_STRING})
+    endif()
+
+    if(version_var)
+      message(STATUS "Third-party library ${cgal_3rdparty_lib} ${version_var}")
+    else()
+      message(STATUS "Third-party library ${cgal_3rdparty_lib} found")
+    endif()
+  else()
+    message(STATUS "Third-party library ${cgal_3rdparty_lib} not found")
+  endif()
+endfunction()
+
+foreach(cgal_3rdparty_lib IN LISTS LIBRARIES_TO_CHECK)
+  check_library(${cgal_3rdparty_lib})
+endforeach()
 message("== Generate version files (DONE) ==\n")
-
 #--------------------------------------------------------------------------------------------------
 #
 #                                    -= External libraries =-
